@@ -373,6 +373,7 @@
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
+      position: relative;
     }
 
     .reminder-card:hover {
@@ -409,6 +410,34 @@
       display: flex;
       align-items: center;
       gap: 1rem;
+      position: relative;
+    }
+
+    .quick-add-btn {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: var(--primary-color);
+      color: white;
+      font-size: 1.2rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-md);
+      transition: all 0.2s;
+      z-index: 10;
+    }
+
+    .quick-add-btn:hover {
+      background: var(--primary-dark);
+      transform: scale(1.1);
+      box-shadow: var(--shadow-lg);
     }
 
     .event-icon {
@@ -853,7 +882,7 @@
     };
 
     // ReminderCard Component 
-    function ReminderCard({ reminder, daysUntil, onEdit, onDelete }) {
+    function ReminderCard({ reminder, daysUntil, onEdit, onDelete, onQuickAdd }) {
       const date = parseISO(reminder.date);
       const isUpcoming = daysUntil <= 7;
       const isToday = daysUntil === 0;
@@ -874,6 +903,18 @@
               <h3 className="person-name">{reminder.name}</h3>
               <span className="event-type">{EVENT_TYPE_LABELS[reminder.eventType]}</span>
             </div>
+            {onQuickAdd && (
+              <button 
+                className="quick-add-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickAdd(reminder);
+                }}
+                title="Add another reminder for this person"
+              >
+                +
+              </button>
+            )}
           </div>
 
           <div className="card-body">
@@ -924,12 +965,34 @@
 
       useEffect(() => {
         if (reminder) {
+          // If reminder has an id, it's editing mode
+          // If no id, it's quick add mode (pre-fill name and relationship only)
+          if (reminder.id) {
+            setFormData({
+              name: reminder.name,
+              relationship: reminder.relationship,
+              eventType: reminder.eventType,
+              date: reminder.date,
+              notes: reminder.notes || '',
+            });
+          } else {
+            // Quick add: pre-fill name and relationship, clear other fields
+            setFormData({
+              name: reminder.name || '',
+              relationship: reminder.relationship || '',
+              eventType: reminder.eventType || 'birthday',
+              date: reminder.date || '',
+              notes: reminder.notes || '',
+            });
+          }
+        } else {
+          // Reset form when no reminder
           setFormData({
-            name: reminder.name,
-            relationship: reminder.relationship,
-            eventType: reminder.eventType,
-            date: reminder.date,
-            notes: reminder.notes || '',
+            name: '',
+            relationship: '',
+            eventType: 'birthday',
+            date: '',
+            notes: '',
           });
         }
       }, [reminder]);
@@ -947,7 +1010,7 @@
         <div className="form-overlay">
           <div className="form-modal">
             <div className="form-header">
-              <h2>{reminder ? 'Edit Reminder' : 'Add Reminder'}</h2>
+              <h2>{reminder && reminder.id ? 'Edit Reminder' : 'Add Reminder'}</h2>
               <button className="close-btn" onClick={onCancel}>×</button>
             </div>
 
@@ -1068,6 +1131,18 @@
         setShowForm(true);
       };
 
+      const handleQuickAdd = (reminder) => {
+        // Pre-fill form with person's name and relationship, but clear other fields
+        setEditingReminder({
+          name: reminder.name,
+          relationship: reminder.relationship,
+          eventType: 'birthday',
+          date: '',
+          notes: ''
+        });
+        setShowForm(true);
+      };
+
       const getDaysUntil = (dateStr) => {
         const date = parseISO(dateStr);
         const today = new Date();
@@ -1149,7 +1224,7 @@
             </div>
             <div className="mascot-container">
               <img 
-                src="/Drew-avatar.png" 
+                src="Drew-avatar.png" 
                 alt="AI Gifting Mascot" 
                 className="mascot-image"
                 onError={(e) => {
@@ -1198,6 +1273,7 @@
                     daysUntil={getDaysUntil(reminder.date)}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
+                    onQuickAdd={handleQuickAdd}
                   />
                 ))}
               </div>
@@ -1220,6 +1296,7 @@
                     daysUntil={getDaysUntil(reminder.date)}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
+                    onQuickAdd={handleQuickAdd}
                   />
                 ))}
               </div>
@@ -1306,7 +1383,7 @@
           {showForm && (
             <ReminderForm
               reminder={editingReminder}
-              onSave={editingReminder 
+              onSave={editingReminder && editingReminder.id
                 ? (data) => handleUpdate(editingReminder.id, data)
                 : handleAdd
               }
